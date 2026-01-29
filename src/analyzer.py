@@ -137,6 +137,7 @@ class AnalysisResult:
     raw_response: Optional[str] = None  # 原始响应（调试用）
     search_performed: bool = False  # 是否执行了联网搜索
     data_sources: str = ""  # 数据来源说明
+    report_path: Optional[str] = None  # 报告文件路径
     success: bool = True
     error_message: Optional[str] = None
     

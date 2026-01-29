@@ -495,6 +495,17 @@ button:active {
     transform: none;
 }
 
+.task-btn.report-btn {
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 1rem;
+}
+
+.task-btn.report-btn:hover {
+    background: var(--primary);
+    color: white;
+}
+
 /* Spinner in task */
 .task-card .spinner {
     width: 12px;
@@ -723,12 +734,20 @@ def render_config_page(
         } else if (status === 'failed') {
             resultHtml = '<div class="task-result"><span class="task-advice sell">失败</span></div>';
         }
+
+        // 添加查看报告按钮
+        let reportBtnHtml = '';
+        if (status === 'completed' && result.report_path) {
+            reportBtnHtml = '<a href="/report?id=' + taskId + '" target="_blank" ' +
+                'class="task-btn report-btn" title="查看完整报告" ' +
+                'onclick="event.stopPropagation()">📄</a>';
+        }
         
         let detailHtml = '';
         if (status === 'completed') {
             detailHtml = '<div class="task-detail" id="detail_' + taskId + '">' +
                 '<div class="task-detail-row"><span class="label">趋势</span><span>' + (result.trend_prediction || '-') + '</span></div>' +
-                (result.analysis_summary ? '<div class="task-detail-summary">' + result.analysis_summary.substring(0, 100) + '...</div>' : '') +
+                (result.analysis_summary ? '<div class="task-detail-summary">' + result.analysis_summary + '</div>' : '') +
                 '</div>';
         }
         
@@ -747,6 +766,7 @@ def render_config_page(
             '</div>' +
             resultHtml +
             '<div class="task-actions">' +
+                reportBtnHtml +
                 '<button class="task-btn" onclick="event.stopPropagation();removeTask(\\''+taskId+'\\')">×</button>' +
             '</div>' +
         '</div>' + detailHtml;

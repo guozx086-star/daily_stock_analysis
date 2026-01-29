@@ -14,7 +14,7 @@ A股自选股智能分析系统 - 核心分析流水线
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date
+from datetime import date, datetime
 from typing import List, Dict, Any, Optional, Tuple
 
 from src.config import get_config, Config
@@ -408,33 +408,44 @@ class StockAnalysisPipeline:
                 return None
             
             result = self.analyze_stock(code)
-            
+
             if result:
                 logger.info(
                     f"[{code}] 分析完成: {result.operation_advice}, "
                     f"评分 {result.sentiment_score}"
                 )
-                
+
+                # 生成并保存报告文件（无论是否推送，都保存报告）
+                try:
+                    # 根据报告类型选择生成方法
+                    if report_type == ReportType.FULL:
+                        # 完整报告：使用决策仪表盘格式
+                        report_content = self.notifier.generate_dashboard_report([result])
+                        logger.info(f"[{code}] 使用完整报告格式")
+                    else:
+                        # 精简报告：使用单股报告格式（默认）
+                        report_content = self.notifier.generate_single_stock_report(result)
+                        logger.info(f"[{code}] 使用精简报告格式")
+
+                    # 保存报告到文件
+                    date_str = datetime.now().strftime('%Y%m%d')
+                    filename = f"{code}_{result.name}_{date_str}.md"
+                    report_path = self.notifier.save_report_to_file(report_content, filename)
+                    result.report_path = str(report_path)  # 保存报告路径到结果对象
+                    logger.info(f"[{code}] 报告已保存: {report_path}")
+                except Exception as e:
+                    logger.error(f"[{code}] 保存报告失败: {e}")
+
                 # 单股推送模式（#55）：每分析完一只股票立即推送
                 if single_stock_notify and self.notifier.is_available():
                     try:
-                        # 根据报告类型选择生成方法
-                        if report_type == ReportType.FULL:
-                            # 完整报告：使用决策仪表盘格式
-                            report_content = self.notifier.generate_dashboard_report([result])
-                            logger.info(f"[{code}] 使用完整报告格式")
-                        else:
-                            # 精简报告：使用单股报告格式（默认）
-                            report_content = self.notifier.generate_single_stock_report(result)
-                            logger.info(f"[{code}] 使用精简报告格式")
-                        
                         if self.notifier.send(report_content):
                             logger.info(f"[{code}] 单股推送成功")
                         else:
                             logger.warning(f"[{code}] 单股推送失败")
                     except Exception as e:
                         logger.error(f"[{code}] 单股推送异常: {e}")
-            
+
             return result
             
         except Exception as e:

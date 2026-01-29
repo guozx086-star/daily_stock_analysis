@@ -226,7 +226,7 @@ class ApiHandler:
     def handle_task_status(self, query: Dict[str, list]) -> Response:
         """
         查询单个任务状态 GET /task?id=xxx
-        
+
         Args:
             query: URL 查询参数
         """
@@ -236,17 +236,119 @@ class ApiHandler:
                 {"success": False, "error": "缺少必填参数: id (任务ID)"},
                 status=HTTPStatus.BAD_REQUEST
             )
-        
+
         task_id = task_id_list[0].strip()
         task = self.analysis_service.get_task_status(task_id)
-        
+
         if task is None:
             return JsonResponse(
                 {"success": False, "error": f"任务不存在: {task_id}"},
                 status=HTTPStatus.NOT_FOUND
             )
-        
+
         return JsonResponse({"success": True, "task": task})
+
+    def handle_report(self, query: Dict[str, list]) -> Response:
+        """
+        获取Markdown报告内容 GET /report?id=xxx
+
+        Args:
+            query: URL 查询参数
+
+        返回:
+            HTML格式的Markdown报告
+        """
+        task_id_list = query.get("id", [])
+        if not task_id_list or not task_id_list[0].strip():
+            return JsonResponse(
+                {"success": False, "error": "缺少必填参数: id (任务ID)"},
+                status=HTTPStatus.BAD_REQUEST
+            )
+
+        task_id = task_id_list[0].strip()
+        task = self.analysis_service.get_task_status(task_id)
+
+        if task is None:
+            return HtmlResponse(
+                b"<html><body><h1>Error 404</h1><p>Task not found</p></body></html>",
+                status=HTTPStatus.NOT_FOUND
+            )
+
+        # 获取报告路径
+        result = task.get('result', {})
+        report_path = result.get('report_path')
+
+        if not report_path:
+            return HtmlResponse(
+                b"<html><body><h1>Error 404</h1><p>Report file not found</p></body></html>",
+                status=HTTPStatus.NOT_FOUND
+            )
+
+        # 读取Markdown文件
+        try:
+            import os
+            if not os.path.isabs(report_path):
+                report_path = os.path.join(os.getcwd(), report_path)
+
+            with open(report_path, 'r', encoding='utf-8') as f:
+                markdown_content = f.read()
+
+            # 转换Markdown为HTML
+            try:
+                import markdown
+                html_content = markdown.markdown(
+                    markdown_content,
+                    extensions=['tables', 'fenced_code', 'nl2br']
+                )
+            except ImportError:
+                # 如果没有markdown库，简单转换
+                html_content = f"<pre>{markdown_content}</pre>"
+
+            # 生成完整HTML页面
+            from web.templates import render_base
+            full_html = render_base(
+                title=f"分析报告 - {result.get('name', '')}({result.get('code', '')})",
+                content=f"""
+                <div style="max-width: 900px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <div style="margin-bottom: 20px;">
+                        <a href="/" style="color: #2563eb; text-decoration: none;">← 返回首页</a>
+                    </div>
+                    <div class="markdown-body">
+                        {html_content}
+                    </div>
+                </div>
+                """,
+                extra_css="""
+                .markdown-body { line-height: 1.6; color: #333; }
+                .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.5em; margin-bottom: 0.5em; }
+                .markdown-body h1 { font-size: 2em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+                .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+                .markdown-body h3 { font-size: 1.25em; }
+                .markdown-body p { margin-bottom: 1em; }
+                .markdown-body ul, .markdown-body ol { padding-left: 2em; margin-bottom: 1em; }
+                .markdown-body blockquote { padding: 0.5em 1em; margin: 1em 0; border-left: 4px solid #ddd; background: #f9f9f9; }
+                .markdown-body code { padding: 0.2em 0.4em; background: #f5f5f5; border-radius: 3px; font-family: monospace; }
+                .markdown-body pre { padding: 1em; background: #f5f5f5; border-radius: 5px; overflow-x: auto; }
+                .markdown-body table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+                .markdown-body table th, .markdown-body table td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+                .markdown-body table th { background: #f5f5f5; font-weight: bold; }
+                .markdown-body hr { border: none; border-top: 1px solid #eee; margin: 2em 0; }
+                """
+            )
+
+            return HtmlResponse(full_html.encode('utf-8'))
+
+        except FileNotFoundError:
+            return HtmlResponse(
+                b"<html><body><h1>Error 404</h1><p>Report file not found on disk</p></body></html>",
+                status=HTTPStatus.NOT_FOUND
+            )
+        except Exception as e:
+            logger.error(f"[ApiHandler] 读取报告文件失败: {e}")
+            return HtmlResponse(
+                f"<html><body><h1>Error 500</h1><p>Failed to read report: {str(e)}</p></body></html>".encode('utf-8'),
+                status=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
 
 # ============================================================

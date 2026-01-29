@@ -277,8 +277,9 @@ class AnalysisService:
                     "operation_advice": result.operation_advice,
                     "trend_prediction": result.trend_prediction,
                     "analysis_summary": result.analysis_summary,
+                    "report_path": result.report_path if hasattr(result, 'report_path') else None,
                 }
-                
+
                 with self._tasks_lock:
                     self._tasks[task_id].update({
                         "status": "completed",
