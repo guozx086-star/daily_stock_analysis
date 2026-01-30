@@ -309,9 +309,9 @@ class ApiHandler:
             full_html = render_base(
                 title=f"分析报告 - {result.get('name', '')}({result.get('code', '')})",
                 content=f"""
-                <div style="max-width: 900px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="margin-bottom: 20px;">
-                        <a href="/" style="color: #2563eb; text-decoration: none;">← 返回首页</a>
+                <div style="max-width: 100%; width: 100%; margin: 0; padding: 10px; background: white;">
+                    <div style="margin-bottom: 15px; padding: 10px 5px;">
+                        <a href="/" style="color: #2563eb; text-decoration: none; font-size: 14px;">← 返回首页</a>
                     </div>
                     <div class="markdown-body">
                         {html_content}
@@ -319,20 +319,74 @@ class ApiHandler:
                 </div>
                 """,
                 extra_css="""
-                .markdown-body { line-height: 1.6; color: #333; }
-                .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.5em; margin-bottom: 0.5em; }
-                .markdown-body h1 { font-size: 2em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
-                .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
-                .markdown-body h3 { font-size: 1.25em; }
-                .markdown-body p { margin-bottom: 1em; }
-                .markdown-body ul, .markdown-body ol { padding-left: 2em; margin-bottom: 1em; }
-                .markdown-body blockquote { padding: 0.5em 1em; margin: 1em 0; border-left: 4px solid #ddd; background: #f9f9f9; }
-                .markdown-body code { padding: 0.2em 0.4em; background: #f5f5f5; border-radius: 3px; font-family: monospace; }
-                .markdown-body pre { padding: 1em; background: #f5f5f5; border-radius: 5px; overflow-x: auto; }
-                .markdown-body table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-                .markdown-body table th, .markdown-body table td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-                .markdown-body table th { background: #f5f5f5; font-weight: bold; }
-                .markdown-body hr { border: none; border-top: 1px solid #eee; margin: 2em 0; }
+                /* 覆盖基础 body 样式 - 报告页面全宽显示 */
+                body {
+                    display: block !important;
+                    min-height: auto !important;
+                    justify-content: normal !important;
+                    align-items: normal !important;
+                    padding: 0 !important;
+                    overflow-x: hidden;
+                    background: #f8f9fa;
+                }
+
+                /* 基础样式 */
+                .markdown-body {
+                    line-height: 1.6;
+                    color: #333;
+                    font-size: 14px;
+                    padding: 10px 5px;
+                }
+                .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin-top: 1.2em; margin-bottom: 0.5em; font-weight: 600; }
+                .markdown-body h1 { font-size: 1.5em; border-bottom: 2px solid #2563eb; padding-bottom: 0.3em; }
+                .markdown-body h2 { font-size: 1.25em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+                .markdown-body h3 { font-size: 1.1em; }
+                .markdown-body p { margin-bottom: 0.8em; }
+
+                /* 列表样式 */
+                .markdown-body ul, .markdown-body ol { padding-left: 1.2em; margin-bottom: 0.8em; }
+                .markdown-body li { margin-bottom: 0.3em; }
+
+                /* 引用块 */
+                .markdown-body blockquote { padding: 0.5em 1em; margin: 1em 0; border-left: 4px solid #2563eb; background: #f0f7ff; border-radius: 0 4px 4px 0; }
+
+                /* 代码块 */
+                .markdown-body code { padding: 0.15em 0.35em; background: #f5f5f5; border-radius: 3px; font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 0.9em; color: #e83e8c; }
+                .markdown-body pre { padding: 0.8em; background: #f8f9fa; border-radius: 5px; overflow-x: auto; margin: 1em 0; font-size: 0.85em; }
+
+                /* 表格样式 - 移动端优化 */
+                .markdown-body table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.85em; }
+                .markdown-body table th, .markdown-body table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; word-wrap: break-word; }
+                .markdown-body table th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600; }
+                .markdown-body table tr:nth-child(even) { background-color: #f8f9fa; }
+                .markdown-body table tr:hover { background-color: #e9ecef; }
+
+                /* 横线 */
+                .markdown-body hr { border: none; border-top: 2px solid #eee; margin: 1.5em 0; }
+
+                /* 响应式设计 - 移动端优化 */
+                @media (max-width: 768px) {
+                    .markdown-body { font-size: 13px; }
+                    .markdown-body h1 { font-size: 1.3em; }
+                    .markdown-body h2 { font-size: 1.15em; }
+                    .markdown-body h3 { font-size: 1em; }
+                    .markdown-body table { font-size: 0.8em; }
+                    .markdown-body table th, .markdown-body table td { padding: 5px 6px; }
+                    .markdown-body pre { padding: 0.6em; font-size: 0.8em; }
+                    .markdown-body blockquote { padding: 0.4em 0.8em; margin: 0.8em 0; }
+                    .markdown-body ul, .markdown-body ol { padding-left: 1em; }
+                }
+
+                /* 超小屏幕优化 */
+                @media (max-width: 480px) {
+                    .markdown-body { font-size: 12px; }
+                    .markdown-body h1 { font-size: 1.2em; }
+                    .markdown-body h2 { font-size: 1.1em; }
+                    .markdown-body h3 { font-size: 1em; }
+                    .markdown-body table { font-size: 0.75em; display: block; overflow-x: auto; }
+                    .markdown-body table th, .markdown-body table td { padding: 4px 5px; }
+                    .markdown-body p { margin-bottom: 0.6em; }
+                }
                 """
             )
 
