@@ -11,18 +11,62 @@ Web 服务层 - 业务逻辑
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, Dict, Any, List, Union
 
 from src.enums import ReportType
 from bot.models import BotMessage
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# 任务持久化工具
+# ============================================================
+
+TASKS_FILE = "web_tasks_history.json"
+
+
+def load_tasks_from_file() -> Dict[str, Any]:
+    """从文件加载任务历史"""
+    if not os.path.exists(TASKS_FILE):
+        return {}
+
+    try:
+        with open(TASKS_FILE, 'r', encoding='utf-8') as f:
+            tasks = json.load(f)
+
+        # 过滤：只保留今天的任务
+        today = date.today().strftime('%Y%m%d')
+        filtered_tasks = {
+            task_id: task_data
+            for task_id, task_data in tasks.items()
+            if task_id.startswith(today) or (len(task_id.split('_')) >= 2 and task_id.split('_')[-2] == today)
+        }
+
+        logger.info(f"[TaskPersistence] 加载了 {len(filtered_tasks)} 个今天的任务（总共 {len(tasks)} 个）")
+        return filtered_tasks
+
+    except Exception as e:
+        logger.error(f"[TaskPersistence] 加载任务历史失败: {e}")
+        return {}
+
+
+def save_tasks_to_file(tasks: Dict[str, Any]) -> None:
+    """保存任务到文件"""
+    try:
+        with open(TASKS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(tasks, f, ensure_ascii=False, indent=2)
+        logger.debug(f"[TaskPersistence] 已保存 {len(tasks)} 个任务")
+    except Exception as e:
+        logger.error(f"[TaskPersistence] 保存任务历史失败: {e}")
+
 
 # ============================================================
 # 配置管理服务
@@ -149,6 +193,10 @@ class AnalysisService:
         self._max_workers = max_workers
         self._tasks: Dict[str, Dict[str, Any]] = {}
         self._tasks_lock = threading.Lock()
+
+        # 启动时从文件加载今天的任务
+        self._tasks = load_tasks_from_file()
+        logger.info(f"[AnalysisService] 从文件加载了 {len(self._tasks)} 个任务")
     
     @classmethod
     def get_instance(cls) -> 'AnalysisService':
@@ -286,7 +334,10 @@ class AnalysisService:
                         "end_time": datetime.now().isoformat(),
                         "result": result_data
                     })
-                
+
+                # 保存任务到文件
+                save_tasks_to_file(self._tasks)
+
                 logger.info(f"[AnalysisService] 股票 {code} 分析完成: {result.operation_advice}")
                 return {"success": True, "task_id": task_id, "result": result_data}
             else:
@@ -296,21 +347,27 @@ class AnalysisService:
                         "end_time": datetime.now().isoformat(),
                         "error": "分析返回空结果"
                     })
-                
+
+                # 保存任务到文件
+                save_tasks_to_file(self._tasks)
+
                 logger.warning(f"[AnalysisService] 股票 {code} 分析失败: 返回空结果")
                 return {"success": False, "task_id": task_id, "error": "分析返回空结果"}
-                
+
         except Exception as e:
             error_msg = str(e)
             logger.error(f"[AnalysisService] 股票 {code} 分析异常: {error_msg}")
-            
+
             with self._tasks_lock:
                 self._tasks[task_id].update({
                     "status": "failed",
                     "end_time": datetime.now().isoformat(),
                     "error": error_msg
                 })
-            
+
+            # 保存任务到文件
+            save_tasks_to_file(self._tasks)
+
             return {"success": False, "task_id": task_id, "error": error_msg}
 
 
